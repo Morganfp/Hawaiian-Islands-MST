@@ -12,18 +12,102 @@
 #include <vector>
 // Include the necessary header files
 #include "PhoneLine.hpp"
+#include "Island.hpp"
 #include "mergeSort.hpp"
 
 
+// Check if an island from the PhoneLines object is already in the islands vector
+// Return the index of the island in the island vector or 0 if the island was not found in the islands vector
+int islandInPhonelines(std::vector<Island> &islands, std::string islandName)
+{
+    int i = 0;
+    for (Island island : islands)
+    {
+        if (islandName == island.islandName())
+            return i;
+        i+=1;
+    }
+
+    // The island was not found
+    return -1;
+}
+
+
+// A function for finding the MST cost
 int findMST(std::vector<PhoneLine> &lines)
 {   
-    // The mst cost
+    // The MST cost
     int cost = 0;
+    // Number of edges processed
+    int m = 0;
 
-    // Find it
+    // Vector to hold individual islands
+    std::vector<Island> islands;
+
+    // Iterate through the PhoneLine objects in the lines vector
+    for (PhoneLine& line : lines)
+    {
+        // If n-1 edges have been processed, the MST has been found
+        m+=1;
+        if (m == lines.size()-1)
+            return cost;
+
+        // If islandOne hasn't been added to the islands vector yet, add it
+        if (islandInPhonelines(islands, line.islandOne()) == -1)
+        {
+            Island* island = new Island(line.islandOne());
+            island->setParent(*island);
+            islands.push_back(*island);
+        }
+        // If islandTwo hasn't been added to the islands vector yet, add it
+        if (islandInPhonelines(islands, line.islandTwo()) == -1)
+        {
+            Island* island = new Island(line.islandTwo());
+            island->setParent(*island);
+            islands.push_back(*island);
+        }
+
+        // Store the index of islandOne and islandTwo from the islands vector
+        int islandOneIndex = islandInPhonelines(islands, line.islandOne());
+        int islandTwoIndex = islandInPhonelines(islands, line.islandTwo());
+
+        // Check the roots of islandOne and islandTwo in the islands vector
+        // If they are in the same set / have the same roots there is already a path between them
+        // adding another path would create a cycle
+        if (islands[islandOneIndex].findRoot().islandName() == islands[islandTwoIndex].findRoot().islandName())
+            continue;
+
+        // A path can be made from islandOne and islandTwo
+        else
+        {
+            // Increment the MST cost
+            cost += line.distance();
+
+            // Check if the rank of islandOne's root is greater than islandTwo's root
+            if (islands[islandOneIndex].findRoot().rank() > islands[islandTwoIndex].findRoot().rank())
+            {
+                // Increment islandOne's roots rank by 1
+                islands[islandOneIndex].findRoot().rank()+=1;
+
+                // Set islandTwo's roots parent equal to islandOne's root
+                islands[islandTwoIndex].findRoot().parent() = islands[islandOneIndex].findRoot();
+            }
+            // The rank of islandTwo's root is greater or equal to islandOne's root
+            else
+            {
+                // Check if the roots have an equal rank
+                if (!(islands[islandOneIndex].findRoot().rank() == islands[islandTwoIndex].findRoot().rank()))
+                    // Increment islandTwo's roots rank by 1
+                    islands[islandTwoIndex].findRoot().rank()+=1;
+
+                // Set islandOne's roots parent equal to islandOne's root
+                islands[islandOneIndex].findRoot().parent() = islands[islandTwoIndex].findRoot();
+            }
+
+        }
+    }
     
-
-    // Return the mst cost
+    // Return the MST cost
     return cost;
 }
 
@@ -31,8 +115,7 @@ int findMST(std::vector<PhoneLine> &lines)
 int main(int argc, char **argv)
 {
     // Pull the name of the input file from the command line
-    // std::ifstream ifile(argv[1]);
-    std::ifstream ifile("if.txt");
+    std::ifstream ifile(argv[1]);
 
     // If the file couldn't be opened, alert the user
     if (!ifile.is_open())
@@ -42,7 +125,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        // Vector to hold the phone line objects
+        // Vector to hold the phone line objects (two islands and the distance between them)
         std::vector<PhoneLine> lines;
 
         // Variables to hold the island names and distance between them
@@ -54,38 +137,23 @@ int main(int argc, char **argv)
         {
             // Push a PhoneLine object into the vector
             PhoneLine* line = new PhoneLine(islandOne, islandTwo, distance);
-            line->setParent(*line);
             lines.push_back(*line);
         }
 
-        // for (PhoneLine l : lines)
-        // {
-        //     std::cout << l.islandOne() << " " << l.islandTwo() << " - " << l.distance() << "\n";
-        // }
+        // If there's only two islands, return the distance between them
+        if (lines.size() == 1)
+            return lines[0].distance();
 
-        // std::cout << "-----------------------\n";
-        // Sort the phone lines by distance
+        // Sort the phone lines in ascending order
         mergeSort(lines);
 
-        for (PhoneLine l : lines)
+        for (PhoneLine line : lines)
         {
-            std::cout << l.islandOne() << " " << l.islandTwo() << " - " << l.distance() << "\n";
+            std::cout << line.islandOne() << " " << line.islandTwo() << " - " << line.distance() << "\n";
         }
-        std::cout << "\n\n";
 
-        std::cout << lines[0].islandOne() << " " << lines[0].islandTwo() << " - " << lines[0].distance() << "\n";
-        std::cout << lines[0].parent().islandOne() << " " << lines[0].parent().islandTwo() << " - " << lines[0].parent().distance() << "\n";
-        lines[0].setParent(lines[1]);
-        std::cout << lines[0].parent().islandOne() << " " << lines[0].parent().islandTwo() << " - " << lines[0].parent().distance() << "\n";
-        std::cout << lines[0].parent().parent().islandOne() << " " << lines[0].parent().parent().islandTwo() << " - " << lines[0].parent().parent().distance() << "\n";
-        lines[1].setParent(lines[2]);
-        lines[2].setParent(lines[3]);
-        std::cout << lines[0].parent().parent().islandOne() << " " << lines[0].parent().parent().islandTwo() << " - " << lines[0].parent().parent().distance() << "\n";
-        std::cout << lines[0].forestParent().islandOne() << " " << lines[0].forestParent().islandTwo() << " - " << lines[0].forestParent().distance() << "\n";
-        // std::cout << lines[2].islandOne() << " " << lines[2].islandTwo() << " - " << lines[2].distance() << "\n";
-
-
-        // std::cout << findMST(lines);
+        // Print the MST cost
+        std::cout << "\n" << findMST(lines);
     }
 
 
